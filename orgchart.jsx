@@ -94,7 +94,7 @@ function NodeCard({ person, onEdit, showEmail, showScope, showId, drag, canEdit 
   const cardStyle = person.color ? { borderTopColor: person.color } : {};
 
   return (
-    <div className={cls} style={cardStyle}
+    <div className={cls} style={cardStyle} data-pid={person.id}
       draggable={canEdit && !isInvalid}
       onDragStart={canEdit ? (e) => {
         e.dataTransfer.setData("text/x-orgchart-id", person.id);
@@ -356,6 +356,66 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
 // ─────────────────────────────────────────────────────────────────────
 // Top bar
 // ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// SVG bezier connector overlay
+// ─────────────────────────────────────────────────────────────────────
+function OrgConnectors({ people, peopleById, zoom, accent }) {
+  const [paths, setPaths] = useState([]);
+
+  useEffect(() => {
+    const measure = () => {
+      const inner = document.querySelector(".canvas-inner");
+      if (!inner) return;
+      const ir = inner.getBoundingClientRect();
+      const z = zoom || 1;
+      const result = [];
+
+      for (const person of people) {
+        if (!person.parent || !peopleById[person.parent]) continue;
+        const pEl = document.querySelector(`[data-pid="${person.parent}"]`);
+        const cEl = document.querySelector(`[data-pid="${person.id}"]`);
+        if (!pEl || !cEl) continue;
+
+        const pr = pEl.getBoundingClientRect();
+        const cr = cEl.getBoundingClientRect();
+
+        const x1 = (pr.left + pr.width  / 2 - ir.left) / z;
+        const y1 = (pr.bottom            - ir.top)  / z;
+        const x2 = (cr.left + cr.width  / 2 - ir.left) / z;
+        const y2 = (cr.top               - ir.top)  / z;
+        const my = (y1 + y2) / 2;
+
+        result.push(`M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`);
+      }
+      setPaths(result);
+    };
+
+    const t = setTimeout(measure, 40);
+    window.addEventListener("resize", measure);
+    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+  }, [people, peopleById, zoom]);
+
+  if (!paths.length) return null;
+  return (
+    <svg style={{
+      position:"absolute", top:0, left:0,
+      width:"100%", height:"100%",
+      overflow:"visible", pointerEvents:"none", zIndex:0,
+    }}>
+      <defs>
+        <linearGradient id="conn-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={accent || "#4A90E2"} stopOpacity="0.55"/>
+          <stop offset="100%" stopColor={accent || "#4A90E2"} stopOpacity="0.18"/>
+        </linearGradient>
+      </defs>
+      {paths.map((d, i) => (
+        <path key={i} d={d} fill="none"
+          stroke="url(#conn-grad)" strokeWidth="1.5" strokeLinecap="round"/>
+      ))}
+    </svg>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // History panel
 // ─────────────────────────────────────────────────────────────────────
@@ -783,6 +843,8 @@ function App() {
 
       <div className="canvas" ref={canvasRef}>
         <div className="canvas-inner" style={zoom !== 1 ? { zoom } : undefined}>
+          <OrgConnectors people={people} peopleById={peopleById}
+            zoom={zoom} accent={t.accent} />
           <ul className="tree">
             {roots.map(r => (
               <TreeNode key={r.id} id={r.id} byParent={byParent} peopleById={peopleById}

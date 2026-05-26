@@ -144,35 +144,13 @@
     padding: var(--gap-v) calc(var(--gap-h)/2) 0;
     text-align:center;
   }
-  /* connector lines */
-  .tree li::before, .tree li::after{
-    content:""; position:absolute; top:0; right:50%;
-    width:50%; height: calc(var(--gap-v) / 2);
-    border-top: var(--line-weight) var(--line-style) var(--line-color);
-  }
-  .tree li::after{ left:50%; right:auto;
-    border-left: var(--line-weight) var(--line-style) var(--line-color); }
-  .tree li:only-child{ padding-top: var(--gap-v); }
-  .tree li:only-child::before, .tree li:only-child::after{
-    display:block; right:auto; left:50%; width:0;
-    border-top:0; border-left: var(--line-weight) var(--line-style) var(--line-color);
-  }
-  .tree li:first-child::before, .tree li:last-child::after{ border: 0 }
-  .tree li:last-child::before{ border-right: var(--line-weight) var(--line-style) var(--line-color) }
-  .tree li:first-child::after{ border-left: var(--line-weight) var(--line-style) var(--line-color) }
-  /* root row — no parent connectors */
+  /* connector lines — hidden, replaced by SVG bezier overlay */
+  .tree li::before, .tree li::after{ display:none !important }
+  .tree li > ul::before{ display:none !important }
   .tree > li{ padding-top: 0 }
-  .tree > li::before, .tree > li::after{ display:none !important }
-  .tree > li:only-child{ padding-top: 0 }
-  .tree > li:only-child::before, .tree > li:only-child::after{ display:none !important }
-  /* vertical stem from each parent card down to its children's horizontal bar */
-  .tree li > ul::before{
-    content:""; position:absolute; top:0; left:50%;
-    width:0; height: var(--gap-v);
-    border-left: var(--line-weight) var(--line-style) var(--line-color);
-  }
-  /* root has no parent line above */
   .tree > li > .node{ margin-top: 0 }
+
+  .canvas-inner{ position: relative; }
 
   /* ───────── node card ───────── */
   .node{
