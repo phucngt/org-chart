@@ -442,11 +442,6 @@ function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onS
       </div>
       <div className="topbar-right">
         <div className="meta-pill"><b>{count}</b> members</div>
-        {lastEditInfo && (
-          <div className="meta-pill" title={lastEditInfo.email}>
-            ✏ <b>{lastEditInfo.name.split(" ")[0]}</b> · {timeAgo(lastEditInfo.time)}
-          </div>
-        )}
         <button className="btn" onClick={onHistory}
           style={historyOpen ? { background:"#2D2D2D", color:"#fff", borderColor:"#2D2D2D" } : {}}
           title="Edit history">
