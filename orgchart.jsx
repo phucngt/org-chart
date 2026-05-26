@@ -32,7 +32,8 @@ const FIREBASE_CONFIG = {
 };
 firebase.initializeApp(FIREBASE_CONFIG);
 const PEOPLE_REF = firebase.database().ref("orgchart/people");
-const EDIT_REF   = firebase.database().ref("orgchart/lastEdit");
+const EDIT_REF    = firebase.database().ref("orgchart/lastEdit");
+const HISTORY_REF = firebase.database().ref("orgchart/history");
 
 const timeAgo = (ts) => {
   const d = Date.now() - ts;
@@ -355,7 +356,81 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
 // ─────────────────────────────────────────────────────────────────────
 // Top bar
 // ─────────────────────────────────────────────────────────────────────
-function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onSignIn, onSignOut }) {
+// ─────────────────────────────────────────────────────────────────────
+// History panel
+// ─────────────────────────────────────────────────────────────────────
+function HistoryPanel({ entries, onClose }) {
+  const actionIcon = (a = "") => {
+    if (a.startsWith("added"))   return "＋";
+    if (a.startsWith("removed")) return "－";
+    if (a.startsWith("edited"))  return "✎";
+    return "↕";
+  };
+  return (
+    <div style={{
+      position:"fixed", top:0, right:0, bottom:0, width:300, zIndex:90,
+      background:"#fff", borderLeft:"1px solid #E6E6E6",
+      boxShadow:"-4px 0 24px rgba(0,0,0,.08)",
+      display:"flex", flexDirection:"column",
+      fontFamily:'"Inter", sans-serif',
+    }}>
+      <div style={{ padding:"16px 20px 12px", borderBottom:"1px solid #E6E6E6",
+                    display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <div style={{ fontWeight:600, fontSize:14, color:"#2D2D2D" }}>Edit history</div>
+          <div style={{ fontSize:10, color:"#A8A8A8", fontFamily:"JetBrains Mono,monospace",
+                        marginTop:3, textTransform:"uppercase", letterSpacing:".08em" }}>
+            {entries.length} changes
+          </div>
+        </div>
+        <button onClick={onClose} style={{
+          appearance:"none", border:"1px solid #E6E6E6", background:"transparent",
+          width:28, height:28, borderRadius:3, cursor:"default",
+          display:"grid", placeItems:"center", color:"#6B6B6B", fontSize:13,
+        }}>✕</button>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto" }}>
+        {entries.length === 0 && (
+          <div style={{ padding:"40px 20px", textAlign:"center", color:"#A8A8A8", fontSize:12 }}>
+            No edits yet
+          </div>
+        )}
+        {entries.map((e, i) => (
+          <div key={i} style={{
+            padding:"12px 20px", borderBottom:"1px solid #F4F4F4",
+            display:"flex", gap:10, alignItems:"flex-start",
+          }}>
+            <div style={{
+              width:32, height:32, borderRadius:"50%", flexShrink:0,
+              background:"#F0F0F0", border:"1px solid #E6E6E6",
+              overflow:"hidden", display:"grid", placeItems:"center",
+              fontSize:12, fontWeight:600, color:"#6B6B6B",
+            }}>
+              {e.photoURL
+                ? <img src={e.photoURL} style={{ width:32, height:32, objectFit:"cover" }} />
+                : initials(e.name)}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                <span style={{ fontSize:12, fontWeight:600, color:"#2D2D2D" }}>{e.name}</span>
+                <span style={{ fontSize:10, color:"#A8A8A8", fontFamily:"JetBrains Mono,monospace",
+                               flexShrink:0, marginLeft:6 }}>{timeAgo(e.time)}</span>
+              </div>
+              <div style={{ fontSize:11, color:"#6B6B6B", marginTop:1, wordBreak:"break-all" }}>{e.email}</div>
+              <div style={{ fontSize:12, color:"#2D2D2D", marginTop:5, display:"flex", gap:5, alignItems:"center" }}>
+                <span style={{ fontSize:11, color:"#4A90E2" }}>{actionIcon(e.action)}</span>
+                {e.action}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onSignIn, onSignOut, onHistory, historyOpen }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -372,6 +447,14 @@ function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onS
             ✏ <b>{lastEditInfo.name.split(" ")[0]}</b> · {timeAgo(lastEditInfo.time)}
           </div>
         )}
+        <button className="btn" onClick={onHistory}
+          style={historyOpen ? { background:"#2D2D2D", color:"#fff", borderColor:"#2D2D2D" } : {}}
+          title="Edit history">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          History
+        </button>
         <button className="btn" onClick={onFit} title="Fit chart to screen">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -455,6 +538,8 @@ function App() {
   const [rootDropOver, setRootDropOver] = useState(false);
   const [zoom, setZoom] = useState(1);
   const canvasRef = useRef(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState([]);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
   // Auth state listener
@@ -471,6 +556,16 @@ function App() {
     return () => EDIT_REF.off();
   }, []);
 
+  // History listener
+  useEffect(() => {
+    HISTORY_REF.limitToLast(100).on("value", (snap) => {
+      const val = snap.val();
+      if (!val) { setHistory([]); return; }
+      setHistory(Object.values(val).sort((a, b) => b.time - a.time));
+    });
+    return () => HISTORY_REF.off();
+  }, []);
+
   const signIn = () => {
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().signInWithPopup(provider);
@@ -479,7 +574,9 @@ function App() {
 
   const trackEdit = useCallback((action) => {
     if (!user) return;
-    EDIT_REF.set({ name: user.displayName, email: user.email, photoURL: user.photoURL || null, action, time: Date.now() });
+    const entry = { name: user.displayName, email: user.email, photoURL: user.photoURL || null, action, time: Date.now() };
+    EDIT_REF.set(entry);
+    HISTORY_REF.push(entry);
   }, [user]);
 
   // Load from Firebase + subscribe to real-time changes
@@ -685,7 +782,8 @@ function App() {
     <div className={densityClass}>
       <TopBar onAdd={onAdd} onReset={onReset} onFit={handleFit} count={people.length}
               lastEditInfo={lastEditInfo} user={user} canEdit={canEdit}
-              onSignIn={signIn} onSignOut={signOut} />
+              onSignIn={signIn} onSignOut={signOut}
+              onHistory={() => setHistoryOpen(o => !o)} historyOpen={historyOpen} />
       <Stats people={people} />
 
       <div className="canvas" ref={canvasRef}>
@@ -730,6 +828,10 @@ function App() {
       )}
 
       <div className={"toast " + (toast ? "show" : "")}>{toast}</div>
+
+      {historyOpen && (
+        <HistoryPanel entries={history} onClose={() => setHistoryOpen(false)} />
+      )}
 
       <TweaksPanel>
         <TweakSection label="Display" />
