@@ -32,6 +32,15 @@ const FIREBASE_CONFIG = {
 };
 firebase.initializeApp(FIREBASE_CONFIG);
 const PEOPLE_REF = firebase.database().ref("orgchart/people");
+const EDIT_REF   = firebase.database().ref("orgchart/lastEdit");
+
+const timeAgo = (ts) => {
+  const d = Date.now() - ts;
+  if (d < 60000)     return "just now";
+  if (d < 3600000)   return Math.floor(d / 60000) + "m ago";
+  if (d < 86400000)  return Math.floor(d / 3600000) + "h ago";
+  return Math.floor(d / 86400000) + "d ago";
+};
 
 const initials = (name) => {
   if (!name) return "?";
@@ -69,7 +78,7 @@ function Avatar({ src, name }) {
 // ─────────────────────────────────────────────────────────────────────
 // Node card
 // ─────────────────────────────────────────────────────────────────────
-function NodeCard({ person, onEdit, showEmail, showScope, showId, drag }) {
+function NodeCard({ person, onEdit, showEmail, showScope, showId, drag, canEdit }) {
   const isDragging = drag.draggingId === person.id;
   const isTarget   = drag.dropTargetId === person.id;
   const isInvalid  = drag.draggingId && drag.invalidIds.has(person.id) && !isDragging;
@@ -85,34 +94,37 @@ function NodeCard({ person, onEdit, showEmail, showScope, showId, drag }) {
 
   return (
     <div className={cls} style={cardStyle}
-      draggable={!isInvalid}
-      onDragStart={(e) => {
+      draggable={canEdit && !isInvalid}
+      onDragStart={canEdit ? (e) => {
         e.dataTransfer.setData("text/x-orgchart-id", person.id);
         e.dataTransfer.effectAllowed = "move";
         drag.onDragStart(person.id);
-      }}
-      onDragEnd={() => drag.onDragEnd()}
-      onDragOver={(e) => {
+      } : undefined}
+      onDragEnd={canEdit ? () => drag.onDragEnd() : undefined}
+      onDragOver={canEdit ? (e) => {
         if (!drag.draggingId || isDragging || isInvalid) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         drag.onDragOver(person.id);
-      }}
-      onDragLeave={() => drag.onDragLeave(person.id)}
-      onDrop={(e) => {
+      } : undefined}
+      onDragLeave={canEdit ? () => drag.onDragLeave(person.id) : undefined}
+      onDrop={canEdit ? (e) => {
         e.preventDefault();
         if (!drag.draggingId || isDragging || isInvalid) return;
         drag.onDrop(person.id);
-      }}
-      onClick={() => { if (!drag.draggingId) onEdit(person.id); }}
-      role="button" tabIndex={0}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(person.id); } }}>
+      } : undefined}
+      onClick={() => { if (canEdit && !drag.draggingId) onEdit(person.id); }}
+      role={canEdit ? "button" : undefined}
+      tabIndex={canEdit ? 0 : undefined}
+      onKeyDown={canEdit ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(person.id); } } : undefined}>
       {showId && <span className="node-id">L{person.level} · {person.id.toUpperCase()}</span>}
-      <button className="node-edit" aria-label="Edit" onClick={(e) => { e.stopPropagation(); onEdit(person.id); }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-        </svg>
-      </button>
+      {canEdit && (
+        <button className="node-edit" aria-label="Edit" onClick={(e) => { e.stopPropagation(); onEdit(person.id); }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+          </svg>
+        </button>
+      )}
       <Avatar src={person.avatar} name={person.name} />
       <h3 className="node-name">{person.name}</h3>
       <p className="node-role">{person.role}</p>
@@ -130,7 +142,7 @@ function NodeCard({ person, onEdit, showEmail, showScope, showId, drag }) {
 // ─────────────────────────────────────────────────────────────────────
 // Tree renderer — recursive <ul><li>
 // ─────────────────────────────────────────────────────────────────────
-function TreeNode({ id, byParent, peopleById, onEdit, opts, drag }) {
+function TreeNode({ id, byParent, peopleById, onEdit, opts, drag, canEdit }) {
   const person = peopleById[id];
   const children = byParent[id] || [];
   if (!person) return null;
@@ -138,12 +150,12 @@ function TreeNode({ id, byParent, peopleById, onEdit, opts, drag }) {
     <li>
       <NodeCard person={person} onEdit={onEdit}
         showEmail={opts.showEmail} showScope={opts.showScope} showId={opts.showIds}
-        drag={drag} />
+        drag={drag} canEdit={canEdit} />
       {children.length > 0 && (
         <ul>
           {children.map((c) => (
             <TreeNode key={c.id} id={c.id} byParent={byParent} peopleById={peopleById}
-                      onEdit={onEdit} opts={opts} drag={drag} />
+                      onEdit={onEdit} opts={opts} drag={drag} canEdit={canEdit} />
           ))}
         </ul>
       )}
@@ -343,7 +355,7 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
 // ─────────────────────────────────────────────────────────────────────
 // Top bar
 // ─────────────────────────────────────────────────────────────────────
-function TopBar({ onAdd, onReset, count, lastEdited }) {
+function TopBar({ onAdd, onReset, count, lastEditInfo, user, canEdit, onSignIn, onSignOut }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -355,18 +367,41 @@ function TopBar({ onAdd, onReset, count, lastEdited }) {
       </div>
       <div className="topbar-right">
         <div className="meta-pill"><b>{count}</b> members</div>
-        {lastEdited && <div className="meta-pill">Last edit · <b>{lastEdited}</b></div>}
+        {lastEditInfo && (
+          <div className="meta-pill" title={lastEditInfo.email}>
+            ✏ <b>{lastEditInfo.name.split(" ")[0]}</b> · {timeAgo(lastEditInfo.time)}
+          </div>
+        )}
         <button className="btn" onClick={() => window.print()} title="Print / Export PDF">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9V2h12v7"/><rect x="6" y="17" width="12" height="5"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
           </svg>
           Print PDF
         </button>
-        <button className="btn" onClick={onReset} title="Restore seed data">Reset</button>
-        <button className="btn btn-primary" onClick={onAdd}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Add member
-        </button>
+        {canEdit && <button className="btn" onClick={onReset} title="Restore seed data">Reset</button>}
+        {canEdit && (
+          <button className="btn btn-primary" onClick={onAdd}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Add member
+          </button>
+        )}
+        {user ? (
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {user.photoURL && (
+              <img src={user.photoURL} alt={user.displayName}
+                style={{ width:28, height:28, borderRadius:"50%", border:"1px solid #E6E6E6" }} />
+            )}
+            <button className="btn btn-ghost" onClick={onSignOut}
+              style={{ fontSize:11 }} title={"Signed in as " + user.email}>
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <button className="btn" onClick={onSignIn}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Sign in to edit
+          </button>
+        )}
       </div>
     </div>
   );
@@ -405,12 +440,39 @@ function App() {
   const [loading, setLoading] = useState(true);
   const isRemoteUpdate = useRef(false);
   const [editingId, setEditingId] = useState(null);
-  const [lastEdited, setLastEdited] = useState(null);
   const [toast, setToast] = useState("");
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [lastEditInfo, setLastEditInfo] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const [dropTargetId, setDropTargetId] = useState(null);
   const [rootDropOver, setRootDropOver] = useState(false);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Auth state listener
+  useEffect(() => {
+    return firebase.auth().onAuthStateChanged((u) => {
+      setUser(u);
+      setAuthReady(true);
+    });
+  }, []);
+
+  // Edit tracking listener
+  useEffect(() => {
+    EDIT_REF.on("value", (snap) => setLastEditInfo(snap.val()));
+    return () => EDIT_REF.off();
+  }, []);
+
+  const signIn = () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider);
+  };
+  const signOut = () => firebase.auth().signOut();
+
+  const trackEdit = useCallback((action) => {
+    if (!user) return;
+    EDIT_REF.set({ name: user.displayName, email: user.email, photoURL: user.photoURL || null, action, time: Date.now() });
+  }, [user]);
 
   // Load from Firebase + subscribe to real-time changes
   useEffect(() => {
@@ -517,8 +579,9 @@ function App() {
     const src = peopleById[sourceId];
     const dst = newParentId ? peopleById[newParentId] : null;
     if (src) {
-      flash(dst ? `${src.name} now reports to ${dst.name}` : `${src.name} is now top of org`);
-      setLastEdited(src.name);
+      const msg = dst ? `${src.name} now reports to ${dst.name}` : `${src.name} is now top of org`;
+      flash(msg);
+      trackEdit(msg);
     }
   }, [peopleById]);
 
@@ -529,21 +592,21 @@ function App() {
 
   const onSave = (next) => {
     setPeople((arr) => arr.map(p => p.id === next.id ? next : p));
-    setLastEdited(next.name);
     setEditingId(null);
+    trackEdit("edited " + next.name);
     flash(`Saved · ${next.name}`);
   };
 
   const onDelete = (id) => {
+    const target = people.find(p => p.id === id);
     setPeople((arr) => {
-      const target = arr.find(p => p.id === id);
       if (!target) return arr;
-      // re-parent children to target's parent
       return arr
         .filter(p => p.id !== id)
         .map(p => p.parent === id ? { ...p, parent: target.parent } : p);
     });
     setEditingId(null);
+    if (target) trackEdit("removed " + target.name);
     flash("Removed");
   };
 
@@ -555,6 +618,7 @@ function App() {
     };
     setPeople(arr => [...arr, newPerson]);
     setEditingId(id);
+    trackEdit("added new member");
   };
 
   const onReset = () => {
@@ -585,8 +649,9 @@ function App() {
 
   const editing = editingId ? peopleById[editingId] : null;
   const densityClass = "density-" + (t.density || "regular");
+  const canEdit = !!user;
 
-  if (loading) return (
+  if (loading || !authReady) return (
     <div style={{ display:"grid", placeItems:"center", height:"100vh",
                   fontFamily:"JetBrains Mono,monospace", fontSize:12,
                   color:"var(--ink-faint)", letterSpacing:".08em" }}>
@@ -596,7 +661,9 @@ function App() {
 
   return (
     <div className={densityClass}>
-      <TopBar onAdd={onAdd} onReset={onReset} count={people.length} lastEdited={lastEdited} />
+      <TopBar onAdd={onAdd} onReset={onReset} count={people.length}
+              lastEditInfo={lastEditInfo} user={user} canEdit={canEdit}
+              onSignIn={signIn} onSignOut={signOut} />
       <Stats people={people} />
 
       <div className="canvas">
@@ -606,14 +673,14 @@ function App() {
               <TreeNode key={r.id} id={r.id} byParent={byParent} peopleById={peopleById}
                         onEdit={setEditingId}
                         opts={{ showEmail: t.showEmail, showScope: t.showScope, showIds: t.showIds }}
-                        drag={drag} />
+                        drag={drag} canEdit={canEdit} />
             ))}
           </ul>
         </div>
       </div>
 
       {/* Drop zone for promoting a node to top-of-org */}
-      <div
+      {canEdit && <div
         className={"root-drop " + (rootDropOver ? "over" : "")}
         onDragOver={(e) => {
           if (!draggingId) return;
@@ -632,7 +699,7 @@ function App() {
           if (src) reparent(src, null);
         }}>
         ↑ Drop here to make top of org
-      </div>
+      </div>}
 
       {editing && (
         <EditModal person={editing} allPeople={people}
