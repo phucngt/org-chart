@@ -475,23 +475,44 @@
   .visually-hidden{ position:absolute; opacity:0; pointer-events:none; width:0; height:0 }
 
   /* ───────── print ───────── */
+  @page { size: A4 landscape; margin: 12mm; }
+
   @media print {
     body { overflow: visible !important; background: #fff !important; }
     body::before { display: none !important; }
     .topbar { display: none !important; }
     .stats { display: none !important; }
+    .root-drop { display: none !important; }
+    .toast { display: none !important; }
+    .twk-panel { display: none !important; }
+    .node-edit { display: none !important; }
+    .level-badge { display: none !important; }
+
     .canvas {
       height: auto !important;
       overflow: visible !important;
     }
-    .canvas-inner { padding: 32px 24px !important; }
-    .node-edit { display: none !important; }
-    .level-badge { display: none !important; }
-    .root-drop { display: none !important; }
-    .toast { display: none !important; }
-    .twk-panel { display: none !important; }
-    .node { break-inside: avoid; cursor: default !important; }
-    .node:hover { transform: none !important; box-shadow: var(--shadow-1) !important; }
+    .canvas-inner {
+      padding: 16px !important;
+      transform-origin: top center;
+    }
+
+    /* scale the whole tree to fit A4 landscape width */
+    .tree {
+      transform: scale(0.78);
+      transform-origin: top center;
+      display: block;
+    }
+
+    .node {
+      break-inside: avoid;
+      cursor: default !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1) !important;
+    }
+    .node:hover {
+      transform: none !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1) !important;
+    }
   }
 
   /* scrollbar */

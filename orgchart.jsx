@@ -81,8 +81,10 @@ function NodeCard({ person, onEdit, showEmail, showScope, showId, drag }) {
     isInvalid && "drop-invalid",
   ].filter(Boolean).join(" ");
 
+  const cardStyle = person.color ? { borderTopColor: person.color } : {};
+
   return (
-    <div className={cls}
+    <div className={cls} style={cardStyle}
       draggable={!isInvalid}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/x-orgchart-id", person.id);
@@ -282,6 +284,33 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
                          removeSkill(draft.skills[draft.skills.length - 1]);
                        }
                      }} />
+            </div>
+          </div>
+
+          <div className="field">
+            <label>Card colour</label>
+            <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+              {["#4A90E2","#1F8A5B","#D97757","#7A5AE0","#E05A8A","#0EA5A0","#2D2D2D","#C0392B"].map(c => (
+                <button key={c} type="button"
+                  onClick={() => set("color", c)}
+                  style={{
+                    width:28, height:28, borderRadius:"50%", background:c, border:"none",
+                    cursor:"default", flexShrink:0,
+                    outline: draft.color === c ? "3px solid " + c : "2px solid transparent",
+                    outlineOffset:2,
+                    opacity: draft.color === c ? 1 : 0.75,
+                  }} />
+              ))}
+              <input type="color"
+                value={draft.color || "#4A90E2"}
+                onChange={(e) => set("color", e.target.value)}
+                title="Custom colour"
+                style={{ width:28, height:28, borderRadius:"50%", border:"1px solid #E6E6E6", padding:2, cursor:"default" }} />
+              {draft.color && (
+                <button type="button" className="btn btn-ghost"
+                  style={{ fontSize:11, padding:"4px 8px" }}
+                  onClick={() => set("color", null)}>Reset</button>
+              )}
             </div>
           </div>
 
