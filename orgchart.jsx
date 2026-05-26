@@ -54,14 +54,14 @@ const initials = (name) => {
 // Tweaks defaults — wrapped in EDITMODE markers so host can persist them
 // ─────────────────────────────────────────────────────────────────────
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "accent": "#4A90E2",
+  "accent": "#C97B67",
   "density": "regular",
   "showEmail": false,
   "showScope": true,
   "showIds": false,
   "nodeSpacing": 26,
-  "lineColor": "#C9C9C9",
-  "lineWeight": 1,
+  "lineColor": "#C5BAB0",
+  "lineWeight": 1.5,
   "lineStyle": "solid"
 }/*EDITMODE-END*/;
 

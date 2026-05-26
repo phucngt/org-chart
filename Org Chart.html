@@ -19,24 +19,24 @@
 
 <style>
   :root{
-    --bg: #F4F4F4;
-    --surface: #FFFFFF;
-    --ink: #2D2D2D;
-    --ink-soft: #6B6B6B;
-    --ink-faint: #A8A8A8;
-    --accent: #4A90E2;
-    --hair: #E6E6E6;
-    --grid: #ECECEC;
-    --line-color: #C9C9C9;
-    --line-weight: 1px;
+    --bg: #EDE9E2;
+    --surface: #FAF8F5;
+    --ink: #2C2418;
+    --ink-soft: #7A6B5A;
+    --ink-faint: #B5A898;
+    --accent: #C97B67;
+    --hair: #DDD7CF;
+    --grid: #E4DFD8;
+    --line-color: #C5BAB0;
+    --line-weight: 1.5px;
     --line-style: solid;
-    --shadow-1: 0 1px 2px rgba(20,20,30,.04), 0 2px 8px rgba(20,20,30,.06);
-    --shadow-2: 0 4px 14px rgba(20,20,30,.10), 0 12px 32px rgba(20,20,30,.10);
+    --shadow-1: 0 1px 2px rgba(60,40,20,.05), 0 2px 8px rgba(60,40,20,.07);
+    --shadow-2: 0 4px 14px rgba(60,40,20,.10), 0 12px 32px rgba(60,40,20,.12);
     --node-w: 200px;
     --node-pad: 18px;
     --gap-h: 26px;
     --gap-v: 56px;
-    --r-card: 4px;
+    --r-card: 8px;
   }
 
   *{box-sizing:border-box}
@@ -66,15 +66,14 @@
   .topbar{
     position: relative; z-index: 5;
     display:flex; align-items:center; justify-content:space-between;
-    padding: 18px 28px 14px;
-    border-bottom: 1px solid var(--hair);
-    background: rgba(244,244,244,.85);
-    backdrop-filter: blur(8px);
+    padding: 16px 28px 13px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    background: #3A6555;
   }
   .brand{display:flex; align-items:center; gap:14px}
   .brand-mark{
-    width:28px; height:28px; border-radius:3px;
-    background: var(--ink);
+    width:28px; height:28px; border-radius:4px;
+    background: #C97B67;
     display:grid; place-items:center;
     color:#fff;
     font: 600 11px/1 "JetBrains Mono", ui-monospace, monospace;
@@ -82,43 +81,44 @@
   }
   .brand-title{
     font-weight: 600; font-size: 15px; letter-spacing: -0.01em;
+    color: #fff;
   }
   .brand-sub{
     font: 500 10.5px/1 "JetBrains Mono", ui-monospace, monospace;
-    color: var(--ink-faint); text-transform: uppercase; letter-spacing: .12em;
+    color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .12em;
     margin-top: 4px;
   }
   .topbar-right{display:flex; align-items:center; gap:10px}
   .meta-pill{
     font: 500 11px/1 "JetBrains Mono", ui-monospace, monospace;
-    color: var(--ink-soft);
-    padding: 6px 10px; border:1px solid var(--hair); border-radius: 2px;
-    background:#fff;
+    color: rgba(255,255,255,.75);
+    padding: 6px 10px; border:1px solid rgba(255,255,255,.18); border-radius: 4px;
+    background: rgba(255,255,255,.1);
     letter-spacing: .04em;
   }
-  .meta-pill b{color: var(--ink); font-weight:600}
+  .meta-pill b{ color:#fff; font-weight:600 }
 
   .btn{
     appearance:none; cursor:default; user-select:none;
-    border:1px solid var(--hair);
-    background:#fff; color: var(--ink);
-    padding: 7px 12px; border-radius: 3px;
+    border:1px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.12); color: rgba(255,255,255,.9);
+    padding: 7px 12px; border-radius: 5px;
     font: 500 12px/1 "Inter", sans-serif;
     display:inline-flex; align-items:center; gap:6px;
     transition: background .12s, border-color .12s, transform .04s;
   }
-  .btn:hover{background:#FAFAFA; border-color:#D6D6D6}
-  .btn:active{transform: translateY(0.5px)}
+  .btn:hover{ background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.3) }
+  .btn:active{ transform: translateY(0.5px) }
   .btn-primary{
-    background: var(--ink); color:#fff; border-color: var(--ink);
+    background: #C97B67; color:#fff; border-color: #C97B67;
   }
-  .btn-primary:hover{background:#000; border-color:#000}
+  .btn-primary:hover{ background: #b86858; border-color: #b86858 }
   .btn-danger{
-    background:#fff; color:#C0392B; border-color:#F1D6D2;
+    background: rgba(255,255,255,.1); color:#f4a49a; border-color: rgba(244,164,154,.3);
   }
-  .btn-danger:hover{background:#FBF1F0}
-  .btn-ghost{ background:transparent; border-color: transparent; color: var(--ink-soft) }
-  .btn-ghost:hover{background: rgba(0,0,0,.04); color: var(--ink)}
+  .btn-danger:hover{ background: rgba(244,164,154,.15) }
+  .btn-ghost{ background:transparent; border-color: transparent; color: rgba(255,255,255,.6) }
+  .btn-ghost:hover{ background: rgba(255,255,255,.1); color: #fff }
 
   /* ───────── canvas ───────── */
   .canvas{
@@ -163,6 +163,7 @@
     padding: 22px var(--node-pad) 16px;
     border: 1px solid var(--hair);
     border-top: 3px solid var(--accent);
+    border-bottom: 1px solid var(--hair);
     text-align:center;
     transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease, opacity .18s ease, background .18s ease;
     cursor: grab;
@@ -183,7 +184,7 @@
   }
   .node.drop-target{
     border-color: var(--accent) !important;
-    background: rgba(74,144,226,.06);
+    background: rgba(201,123,103,.06);
     box-shadow: 0 0 0 2px var(--accent), var(--shadow-2);
     transform: translateY(-1px) scale(1.01);
   }
@@ -229,14 +230,14 @@
 
   .node-edit{
     position:absolute; top:8px; right:8px;
-    width:22px; height:22px; border-radius:2px;
+    width:22px; height:22px; border-radius:4px;
     display:grid; place-items:center;
-    background: rgba(74,144,226,.08); color: var(--accent);
-    border: 1px solid rgba(74,144,226,.2);
+    background: rgba(201,123,103,.1); color: var(--accent);
+    border: 1px solid rgba(201,123,103,.25);
     opacity: 0; transform: translateY(-2px);
     transition: opacity .18s, transform .18s, background .12s;
   }
-  .node-edit:hover{ background: rgba(74,144,226,.18) }
+  .node-edit:hover{ background: rgba(201,123,103,.2) }
   .node-edit svg{width:11px; height:11px}
 
   .node-id{
@@ -402,7 +403,7 @@
   }
   .field input:focus, .field select:focus{
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(74,144,226,.12);
+    box-shadow: 0 0 0 3px rgba(201,123,103,.15);
   }
 
   .chips-editor{
@@ -441,7 +442,7 @@
   .stats{
     display:flex; gap:24px;
     padding: 14px 28px;
-    background: #fff;
+    background: #F4F0EA;
     border-bottom: 1px solid var(--hair);
     position: relative; z-index: 4;
   }
