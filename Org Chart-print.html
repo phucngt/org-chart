@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team Org Chart — Print</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #F4F4F4;
+    --surface: #FFFFFF;
+    --ink: #2D2D2D;
+    --ink-soft: #6B6B6B;
+    --ink-faint: #A8A8A8;
+    --accent: #4A90E2;
+    --hair: #D6D6D6;
+    --shadow-1: 0 1px 2px rgba(20,20,30,.06), 0 2px 6px rgba(20,20,30,.06);
+    --node-w: 200px;
+    --gap-h: 26px;
+    --gap-v: 56px;
+    --r-card: 4px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ───────── document header ───────── */
+  .doc-head{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding: 24px 32px 16px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .brand{display:flex; align-items:center; gap:14px}
+  .brand-mark{
+    width:30px; height:30px; border-radius:3px;
+    background: var(--ink); color:#fff;
+    display:grid; place-items:center;
+    font: 600 11px/1 "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: .04em;
+  }
+  .brand-title{ font-weight: 600; font-size: 16px; letter-spacing: -0.01em }
+  .brand-sub{
+    font: 500 10.5px/1 "JetBrains Mono", monospace;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: .12em;
+    margin-top: 4px;
+  }
+  .doc-meta{
+    text-align:right;
+    font: 500 10.5px/1.5 "JetBrains Mono", monospace;
+    color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+  .doc-meta b{color: var(--ink); font-weight:600}
+
+  /* ───────── stats ───────── */
+  .stats{
+    display:flex; gap:30px;
+    padding: 14px 32px;
+    background:#fff;
+    border-bottom: 1px solid var(--hair);
+  }
+  .stat .num{ font: 600 18px/1 "Inter", sans-serif; letter-spacing:-0.02em }
+  .stat .lbl{
+    font: 500 10px/1 "JetBrains Mono", monospace;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: .1em;
+    margin-top: 4px;
+  }
+
+  /* ───────── tree ───────── */
+  .canvas{ padding: 56px 32px 32px; display:flex; justify-content:center }
+
+  .tree, .tree ul{ list-style:none; padding:0; margin:0 }
+  .tree{ display:inline-block; text-align:center }
+  .tree ul{
+    display:flex; justify-content:center; position:relative;
+    padding-top: var(--gap-v);
+  }
+  .tree li{
+    position:relative;
+    padding: var(--gap-v) calc(var(--gap-h)/2) 0;
+    text-align:center;
+    break-inside: avoid;
+  }
+  .tree li::before, .tree li::after{
+    content:""; position:absolute; top:0; right:50%;
+    width:50%; height: calc(var(--gap-v) / 2);
+    border-top: 1px solid var(--hair);
+  }
+  .tree li::after{ left:50%; right:auto; border-left: 1px solid var(--hair); }
+  .tree li:only-child{ padding-top: var(--gap-v); }
+  .tree li:only-child::before, .tree li:only-child::after{
+    display:block; right:auto; left:50%; width:0;
+    border-top:0; border-left: 1px solid var(--hair);
+  }
+  .tree li:first-child::before, .tree li:last-child::after{ border: 0 }
+  .tree li:last-child::before{ border-right: 1px solid var(--hair) }
+  .tree li:first-child::after{ border-left: 1px solid var(--hair) }
+  .tree > li{ padding-top: 0 }
+  .tree > li::before, .tree > li::after{ display:none }
+  .tree ul ul::before{
+    content:""; position:absolute; top:0; left:50%;
+    width:0; height: var(--gap-v);
+    border-left: 1px solid var(--hair);
+  }
+
+  .node{
+    display:inline-flex; flex-direction:column; align-items:center;
+    width: var(--node-w);
+    background: var(--surface);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-1);
+    padding: 22px 18px 16px;
+    border: 1px solid var(--hair);
+    border-top: 3px solid var(--accent);
+    text-align:center;
+    break-inside: avoid;
+  }
+
+  .avatar{
+    width:60px; height:60px; border-radius:50%;
+    background: #F0F0F0;
+    border: 1px solid var(--hair);
+    display:grid; place-items:center;
+    color: var(--ink-soft);
+    font: 600 18px/1 "Inter", sans-serif;
+    margin-bottom: 12px;
+  }
+  .node-name{
+    font-size: 16px; font-weight: 700; line-height: 1.2;
+    color: var(--ink); letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .node-role{
+    font-size: 14px; font-weight: 400; line-height: 1.3;
+    color: var(--ink-soft);
+    margin: 4px 0 0;
+  }
+  .node-email{
+    font: 400 11px/1.3 "JetBrains Mono", monospace;
+    color: var(--ink-faint);
+    margin-top: 8px;
+    word-break: break-all;
+  }
+  .tags{
+    display:flex; flex-wrap:wrap; gap:5px; justify-content:center;
+    margin-top: 12px;
+  }
+  .tag{
+    font: 500 10px/1 "JetBrains Mono", monospace;
+    color: var(--ink-soft);
+    background: #F4F4F4;
+    padding: 4px 7px;
+    border-radius: 2px;
+    border: 1px solid var(--hair);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .tag.accent{
+    color: var(--accent);
+    border-color: rgba(74,144,226,.25);
+    background: rgba(74,144,226,.06);
+  }
+
+  /* ───────── directory table (second page) ───────── */
+  .directory{
+    padding: 28px 32px 40px;
+    break-before: page;
+  }
+  .directory h2{
+    margin: 0 0 4px;
+    font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
+  }
+  .directory .sub{
+    font: 500 10px/1 "JetBrains Mono", monospace;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: .1em;
+    margin-bottom: 18px;
+  }
+  table.roster{
+    width:100%; border-collapse: collapse;
+    font: 400 12px/1.4 "Inter", sans-serif;
+  }
+  table.roster th{
+    text-align:left; font: 500 10px/1 "JetBrains Mono", monospace;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: .1em;
+    padding: 10px 12px; border-bottom: 1px solid var(--hair);
+    background:#fff;
+  }
+  table.roster td{
+    padding: 10px 12px;
+    border-bottom: 1px solid #ECECEC;
+    color: var(--ink);
+    vertical-align: top;
+  }
+  table.roster tr{ break-inside: avoid }
+  table.roster td.level{
+    font: 500 11px/1 "JetBrains Mono", monospace;
+    color: var(--accent);
+  }
+  table.roster td.email{
+    font: 400 11px/1.3 "JetBrains Mono", monospace;
+    color: var(--ink-soft);
+  }
+  table.roster td.scope .tag{ display:inline-block }
+  .name{font-weight:600}
+
+  /* ───────── print rules ───────── */
+  @page {
+    size: A3 landscape;
+    margin: 0.6cm;
+  }
+  @media print {
+    body{ background: #fff }
+    .doc-head, .stats{ background:#fff }
+    .canvas{ padding: 24px 16px }
+    .directory{ padding: 16px 16px 24px }
+  }
+</style>
+</head>
+<body>
+
+<header class="doc-head">
+  <div class="brand">
+    <div class="brand-mark">YW</div>
+    <div>
+      <div class="brand-title">Team Organisation</div>
+      <div class="brand-sub">YW · Australia × Vietnam</div>
+    </div>
+  </div>
+  <div class="doc-meta">
+    <div><b>Org Chart</b> · Internal</div>
+    <div id="doc-date">—</div>
+  </div>
+</header>
+
+<section class="stats">
+  <div class="stat"><div class="num">9</div><div class="lbl">Total members</div></div>
+  <div class="stat"><div class="num">1</div><div class="lbl">Directors · L1</div></div>
+  <div class="stat"><div class="num">3</div><div class="lbl">Managers · L2</div></div>
+  <div class="stat"><div class="num">5</div><div class="lbl">Leads · L3</div></div>
+  <div class="stat"><div class="num">3</div><div class="lbl">Active scopes</div></div>
+</section>
+
+<main class="canvas">
+  <ul class="tree">
+    <li>
+      <!-- L1 -->
+      <div class="node">
+        <div class="avatar"><span>MG</span></div>
+        <h3 class="node-name">Mathew George</h3>
+        <p class="node-role">Director</p>
+        <div class="tags">
+          <span class="tag accent">Design &amp; Business</span>
+          <span class="tag">Strategy</span>
+          <span class="tag">Design</span>
+          <span class="tag">Business</span>
+        </div>
+      </div>
+
+      <ul>
+        <!-- L2: Sam -->
+        <li>
+          <div class="node">
+            <div class="avatar"><span>SN</span></div>
+            <h3 class="node-name">Sam Nguyen</h3>
+            <p class="node-role">Project Manager</p>
+            <div class="tags">
+              <span class="tag">Delivery</span>
+              <span class="tag">Planning</span>
+            </div>
+          </div>
+        </li>
+
+        <!-- L2: Nhut -->
+        <li>
+          <div class="node">
+            <div class="avatar"><span>NP</span></div>
+            <h3 class="node-name">Nhut Pham</h3>
+            <p class="node-role">Director</p>
+            <div class="tags">
+              <span class="tag accent">Operations</span>
+              <span class="tag">Ops</span>
+              <span class="tag">Finance</span>
+            </div>
+          </div>
+          <ul>
+            <li>
+              <div class="node">
+                <div class="avatar"><span>DN</span></div>
+                <h3 class="node-name">Duy Nguyen</h3>
+                <p class="node-role">Lead</p>
+                <div class="tags">
+                  <span class="tag accent">BM</span>
+                  <span class="tag">Ops</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </li>
+
+        <!-- L2: Thanh -->
+        <li>
+          <div class="node">
+            <div class="avatar"><span>TN</span></div>
+            <h3 class="node-name">Thanh Nguyen</h3>
+            <p class="node-role">Design Manager</p>
+            <div class="tags">
+              <span class="tag">Design</span>
+              <span class="tag">Mentoring</span>
+            </div>
+          </div>
+          <ul>
+            <li>
+              <div class="node">
+                <div class="avatar"><span>KN</span></div>
+                <h3 class="node-name">Khoa Nguyen</h3>
+                <p class="node-role">Lead</p>
+                <div class="tags">
+                  <span class="tag accent">AG</span>
+                  <span class="tag">Concept</span>
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="node">
+                <div class="avatar"><span>QN</span></div>
+                <h3 class="node-name">Quynh Nguyen</h3>
+                <p class="node-role">Lead</p>
+                <div class="tags">
+                  <span class="tag accent">AG</span>
+                  <span class="tag">Documentation</span>
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="node">
+                <div class="avatar"><span>GN</span></div>
+                <h3 class="node-name">Giao Nguyen</h3>
+                <p class="node-role">Lead</p>
+                <div class="tags">
+                  <span class="tag accent">Redi</span>
+                  <span class="tag">Design</span>
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="node">
+                <div class="avatar"><span>DN</span></div>
+                <h3 class="node-name">Dang Nguyen</h3>
+                <p class="node-role">QS Lead</p>
+                <div class="tags">
+                  <span class="tag accent">Redi</span>
+                  <span class="tag">QS</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</main>
+
+<!-- ───── Page 2: Roster ───── -->
+<section class="directory">
+  <h2>Team directory</h2>
+  <div class="sub">Roster · all members · sorted by level</div>
+
+  <table class="roster">
+    <thead>
+      <tr>
+        <th style="width:60px">Level</th>
+        <th style="width:24%">Name</th>
+        <th style="width:20%">Role</th>
+        <th style="width:18%">Scope</th>
+        <th>Email</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="level">L1</td>
+        <td class="name">Mathew George</td>
+        <td>Director</td>
+        <td class="scope"><span class="tag accent">Design &amp; Business</span></td>
+        <td class="email">mathew@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L2</td>
+        <td class="name">Sam Nguyen</td>
+        <td>Project Manager</td>
+        <td class="scope">—</td>
+        <td class="email">sam@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L2</td>
+        <td class="name">Nhut Pham</td>
+        <td>Director</td>
+        <td class="scope"><span class="tag accent">Operations</span></td>
+        <td class="email">nhut@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L2</td>
+        <td class="name">Thanh Nguyen</td>
+        <td>Design Manager</td>
+        <td class="scope">—</td>
+        <td class="email">thanh@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L3</td>
+        <td class="name">Khoa Nguyen</td>
+        <td>Lead</td>
+        <td class="scope"><span class="tag accent">AG</span></td>
+        <td class="email">khoa@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L3</td>
+        <td class="name">Quynh Nguyen</td>
+        <td>Lead</td>
+        <td class="scope"><span class="tag accent">AG</span></td>
+        <td class="email">quynh@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L3</td>
+        <td class="name">Duy Nguyen</td>
+        <td>Lead</td>
+        <td class="scope"><span class="tag accent">BM</span></td>
+        <td class="email">duy@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L3</td>
+        <td class="name">Giao Nguyen</td>
+        <td>Lead</td>
+        <td class="scope"><span class="tag accent">Redi</span></td>
+        <td class="email">giao@yw.com</td>
+      </tr>
+      <tr>
+        <td class="level">L3</td>
+        <td class="name">Dang Nguyen</td>
+        <td>QS Lead</td>
+        <td class="scope"><span class="tag accent">Redi</span></td>
+        <td class="email">dang@yw.com</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<script>
+  // stamp date
+  (function () {
+    const d = new Date();
+    const opts = { year: "numeric", month: "short", day: "numeric" };
+    document.getElementById("doc-date").textContent = d.toLocaleDateString(undefined, opts);
+  })();
+
+  // auto-print once fonts and layout are ready
+  (async function () {
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+    } catch (e) { /* noop */ }
+    setTimeout(function () { window.print(); }, 500);
+  })();
+</script>
+
+</body>
+</html>
