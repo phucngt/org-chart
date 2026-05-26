@@ -22,11 +22,13 @@ const SEED = [
 // Project Settings → Your apps → Firebase SDK snippet → Config
 // ─────────────────────────────────────────────────────────────────────
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL:       "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId:         "YOUR_PROJECT_ID",
-  appId:             "YOUR_APP_ID",
+  apiKey:            "AIzaSyCi-jRNUhbujCe0cN4z2ch7QIX5EJN3qQA",
+  authDomain:        "org-chart-b2ae0.firebaseapp.com",
+  databaseURL:       "https://org-chart-b2ae0-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "org-chart-b2ae0",
+  storageBucket:     "org-chart-b2ae0.firebasestorage.app",
+  messagingSenderId: "761712205749",
+  appId:             "1:761712205749:web:10ad131c696e719ced03fc",
 };
 firebase.initializeApp(FIREBASE_CONFIG);
 const PEOPLE_REF = firebase.database().ref("orgchart/people");
