@@ -355,7 +355,7 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
 // ─────────────────────────────────────────────────────────────────────
 // Top bar
 // ─────────────────────────────────────────────────────────────────────
-function TopBar({ onAdd, onReset, count, lastEditInfo, user, canEdit, onSignIn, onSignOut }) {
+function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onSignIn, onSignOut }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -372,6 +372,12 @@ function TopBar({ onAdd, onReset, count, lastEditInfo, user, canEdit, onSignIn, 
             ✏ <b>{lastEditInfo.name.split(" ")[0]}</b> · {timeAgo(lastEditInfo.time)}
           </div>
         )}
+        <button className="btn" onClick={onFit} title="Fit chart to screen">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          Fit
+        </button>
         <button className="btn" onClick={() => window.print()} title="Print / Export PDF">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9V2h12v7"/><rect x="6" y="17" width="12" height="5"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
@@ -447,6 +453,8 @@ function App() {
   const [draggingId, setDraggingId] = useState(null);
   const [dropTargetId, setDropTargetId] = useState(null);
   const [rootDropOver, setRootDropOver] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const canvasRef = useRef(null);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
   // Auth state listener
@@ -585,6 +593,20 @@ function App() {
     }
   }, [peopleById]);
 
+  const handleFit = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setZoom(1);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      const scale = Math.min(
+        canvas.clientWidth  / canvas.scrollWidth,
+        canvas.clientHeight / canvas.scrollHeight
+      );
+      setZoom(Math.max(0.1, Math.min(1, scale)));
+    }));
+  }, []);
+
   const flash = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 1800);
@@ -661,13 +683,13 @@ function App() {
 
   return (
     <div className={densityClass}>
-      <TopBar onAdd={onAdd} onReset={onReset} count={people.length}
+      <TopBar onAdd={onAdd} onReset={onReset} onFit={handleFit} count={people.length}
               lastEditInfo={lastEditInfo} user={user} canEdit={canEdit}
               onSignIn={signIn} onSignOut={signOut} />
       <Stats people={people} />
 
-      <div className="canvas">
-        <div className="canvas-inner">
+      <div className="canvas" ref={canvasRef}>
+        <div className="canvas-inner" style={zoom !== 1 ? { zoom } : undefined}>
           <ul className="tree">
             {roots.map(r => (
               <TreeNode key={r.id} id={r.id} byParent={byParent} peopleById={peopleById}
