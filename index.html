@@ -474,6 +474,26 @@
   .hidden{ display:none !important }
   .visually-hidden{ position:absolute; opacity:0; pointer-events:none; width:0; height:0 }
 
+  /* ───────── print ───────── */
+  @media print {
+    body { overflow: visible !important; background: #fff !important; }
+    body::before { display: none !important; }
+    .topbar { display: none !important; }
+    .stats { display: none !important; }
+    .canvas {
+      height: auto !important;
+      overflow: visible !important;
+    }
+    .canvas-inner { padding: 32px 24px !important; }
+    .node-edit { display: none !important; }
+    .level-badge { display: none !important; }
+    .root-drop { display: none !important; }
+    .toast { display: none !important; }
+    .twk-panel { display: none !important; }
+    .node { break-inside: avoid; cursor: default !important; }
+    .node:hover { transform: none !important; box-shadow: var(--shadow-1) !important; }
+  }
+
   /* scrollbar */
   .canvas::-webkit-scrollbar{ width:10px; height:10px }
   .canvas::-webkit-scrollbar-thumb{ background:#D9D9D9; border-radius:5px; border:2px solid var(--bg); background-clip: content-box }

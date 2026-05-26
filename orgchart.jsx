@@ -327,6 +327,12 @@ function TopBar({ onAdd, onReset, count, lastEdited }) {
       <div className="topbar-right">
         <div className="meta-pill"><b>{count}</b> members</div>
         {lastEdited && <div className="meta-pill">Last edit · <b>{lastEdited}</b></div>}
+        <button className="btn" onClick={() => window.print()} title="Print / Export PDF">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9V2h12v7"/><rect x="6" y="17" width="12" height="5"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          </svg>
+          Print PDF
+        </button>
         <button className="btn" onClick={onReset} title="Restore seed data">Reset</button>
         <button className="btn btn-primary" onClick={onAdd}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
