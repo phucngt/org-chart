@@ -62,7 +62,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "nodeSpacing": 26,
   "lineColor": "#C5BAB0",
   "lineWeight": 1.5,
-  "lineStyle": "solid"
+  "lineStyle": "solid",
+  "lineType": "orthogonal"
 }/*EDITMODE-END*/;
 
 // ─────────────────────────────────────────────────────────────────────
@@ -243,18 +244,29 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
 
         <form className="modal-body" onSubmit={submit}>
           <div className="avatar-row">
-            <Avatar src={draft.avatar} name={draft.name} />
+            {/* Tap avatar to upload */}
+            <div className="avatar-upload-wrap" onClick={() => fileRef.current?.click()}
+              title="Tap to upload photo">
+              <Avatar src={draft.avatar} name={draft.name} />
+              <div className="avatar-upload-overlay">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+            </div>
             <div className="avatar-actions">
-              <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
-                {draft.avatar ? "Replace photo" : "Upload photo"}
-              </button>
               {draft.avatar && (
-                <button type="button" className="btn btn-ghost" onClick={() => set("avatar", null)}>
-                  Remove
-                </button>
+                <button type="button" className="btn btn-ghost"
+                  onClick={() => set("avatar", null)}>Remove photo</button>
               )}
-              <div className="hint">PNG / JPG · 60×60 minimum</div>
-              <input ref={fileRef} type="file" accept="image/*" className="visually-hidden" onChange={handleAvatar} />
+              <div className="hint">
+                {draft.avatar ? "Tap avatar to replace" : "Tap avatar to upload"}
+                {" · PNG/JPG"}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*"
+                className="visually-hidden" onChange={handleAvatar} />
             </div>
           </div>
 
@@ -354,13 +366,221 @@ function EditModal({ person, allPeople, onClose, onSave, onDelete }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Top bar
+// Members list dropdown (BFS order = top-to-bottom of org chart)
 // ─────────────────────────────────────────────────────────────────────
+function MembersPanel({ people, byParent, roots, peopleById, onClose }) {
+  const ordered = useMemo(() => {
+    const result = [];
+    const queue = [...roots];
+    while (queue.length) {
+      const p = queue.shift();
+      result.push(p);
+      (byParent[p.id] || []).forEach(c => queue.push(c));
+    }
+    return result;
+  }, [roots, byParent]);
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const LC = { 1: "#3A6555", 2: "#C97B67", 3: "#8BA898" };
+  const LBG = { 1: "#3A655518", 2: "#C97B6718", 3: "#8BA89818" };
+
+  const TH = ({ children, style }) => (
+    <th style={{
+      padding:"10px 14px", textAlign:"left", whiteSpace:"nowrap",
+      fontFamily:'"JetBrains Mono",monospace', fontSize:9, fontWeight:600,
+      textTransform:"uppercase", letterSpacing:".1em", color:"#B5A898",
+      borderBottom:"2px solid #EDE9E2", background:"#FAFAF9",
+      position:"sticky", top:0, zIndex:1,
+      ...style
+    }}>{children}</th>
+  );
+
+  return (
+    <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background:"#fff", borderRadius:10, width:"min(92vw, 780px)",
+        maxHeight:"calc(100vh - 64px)", display:"flex", flexDirection:"column",
+        boxShadow:"0 30px 80px rgba(20,20,30,.22), 0 8px 24px rgba(20,20,30,.1)",
+        border:"1px solid #EDE9E2",
+        animation:"pop .22s cubic-bezier(.2,.7,.3,1)",
+        fontFamily:'"Inter",sans-serif',
+      }}>
+
+        {/* header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                      padding:"16px 20px 14px", borderBottom:"1px solid #EDE9E2", flexShrink:0 }}>
+          <div>
+            <div style={{ fontWeight:700, fontSize:15, color:"#2C2418", letterSpacing:"-0.01em" }}>
+              Team members
+            </div>
+            <div style={{ fontSize:10, fontFamily:'"JetBrains Mono",monospace',
+                          color:"#B5A898", marginTop:3, textTransform:"uppercase", letterSpacing:".08em" }}>
+              {people.length} members · sorted by org level
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            appearance:"none", border:"1px solid #EDE9E2", background:"transparent",
+            width:30, height:30, borderRadius:5, cursor:"default",
+            display:"grid", placeItems:"center", color:"#7A6B5A", fontSize:14,
+          }}>✕</button>
+        </div>
+
+        {/* table */}
+        <div style={{ overflowY:"auto", flex:1 }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr>
+                <TH style={{ width:40 }}>#</TH>
+                <TH>Member</TH>
+                <TH>Role</TH>
+                <TH>Level</TH>
+                <TH>Reports to</TH>
+                <TH>Scope</TH>
+                <TH>Skills</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map((p, i) => {
+                const parent = p.parent ? peopleById[p.parent] : null;
+                return (
+                  <tr key={p.id}
+                    style={{ background: i % 2 === 0 ? "#fff" : "#FDFCFA" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F5F1EC"}
+                    onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#FDFCFA"}>
+
+                    {/* # */}
+                    <td style={{ padding:"10px 14px", color:"#C5BAB0", fontSize:11,
+                                 fontFamily:'"JetBrains Mono",monospace', textAlign:"center",
+                                 borderBottom:"1px solid #F4F0EB" }}>
+                      {i + 1}
+                    </td>
+
+                    {/* member */}
+                    <td style={{ padding:"10px 14px", borderBottom:"1px solid #F4F0EB" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", flexShrink:0,
+                                      background:"#F0EDE8", border:"1px solid #E6E2DC",
+                                      display:"grid", placeItems:"center",
+                                      fontSize:11, fontWeight:700, color:"#7A6B5A", overflow:"hidden" }}>
+                          {p.avatar
+                            ? <img src={p.avatar} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                            : initials(p.name)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:600, color:"#2C2418", whiteSpace:"nowrap" }}>{p.name}</div>
+                          {p.email && <div style={{ fontSize:11, color:"#B5A898", fontFamily:'"JetBrains Mono",monospace',
+                                                   marginTop:1 }}>{p.email}</div>}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* role */}
+                    <td style={{ padding:"10px 14px", color:"#7A6B5A", whiteSpace:"nowrap",
+                                 borderBottom:"1px solid #F4F0EB" }}>{p.role}</td>
+
+                    {/* level */}
+                    <td style={{ padding:"10px 14px", borderBottom:"1px solid #F4F0EB" }}>
+                      <span style={{ fontSize:10, fontWeight:700,
+                                     fontFamily:'"JetBrains Mono",monospace',
+                                     color: LC[p.level] || "#C5BAB0",
+                                     background: LBG[p.level] || "#C5BAB022",
+                                     padding:"3px 7px", borderRadius:3, letterSpacing:".04em" }}>
+                        L{p.level}
+                      </span>
+                    </td>
+
+                    {/* reports to */}
+                    <td style={{ padding:"10px 14px", color:"#7A6B5A", whiteSpace:"nowrap",
+                                 borderBottom:"1px solid #F4F0EB" }}>
+                      {parent ? (
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <div style={{ width:5, height:5, borderRadius:"50%",
+                                        background: LC[parent.level] || "#C5BAB0", flexShrink:0 }}/>
+                          {parent.name}
+                        </div>
+                      ) : (
+                        <span style={{ color:"#C5BAB0", fontSize:11,
+                                       fontFamily:'"JetBrains Mono",monospace' }}>—</span>
+                      )}
+                    </td>
+
+                    {/* scope */}
+                    <td style={{ padding:"10px 14px", borderBottom:"1px solid #F4F0EB" }}>
+                      {p.scope
+                        ? <span style={{ fontSize:10, fontWeight:600,
+                                         fontFamily:'"JetBrains Mono",monospace',
+                                         color:"#C97B67", background:"#C97B6712",
+                                         padding:"2px 6px", borderRadius:2,
+                                         textTransform:"uppercase", letterSpacing:".04em" }}>
+                            {p.scope}
+                          </span>
+                        : <span style={{ color:"#C5BAB0", fontSize:11,
+                                         fontFamily:'"JetBrains Mono",monospace' }}>—</span>}
+                    </td>
+
+                    {/* skills */}
+                    <td style={{ padding:"10px 14px", borderBottom:"1px solid #F4F0EB" }}>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                        {(p.skills || []).map((s, j) => (
+                          <span key={j} style={{ fontSize:9, fontFamily:'"JetBrains Mono",monospace',
+                                                  color:"#7A6B5A", background:"#F0EDE8",
+                                                  padding:"2px 5px", borderRadius:2,
+                                                  textTransform:"uppercase", letterSpacing:".04em",
+                                                  border:"1px solid #E6E2DC" }}>
+                            {s}
+                          </span>
+                        ))}
+                        {(!p.skills || p.skills.length === 0) &&
+                          <span style={{ color:"#C5BAB0", fontSize:11,
+                                         fontFamily:'"JetBrains Mono",monospace' }}>—</span>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // SVG bezier connector overlay
 // ─────────────────────────────────────────────────────────────────────
-function OrgConnectors({ people, peopleById, zoom, accent }) {
+function buildLinePath(x1, y1, x2, y2, lineType) {
+  const my = (y1 + y2) / 2;
+  if (lineType === "straight") {
+    return `M ${x1} ${y1} L ${x2} ${y2}`;
+  }
+  if (lineType === "curved") {
+    return `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+  }
+  // orthogonal with rounded corners (default)
+  if (Math.abs(x2 - x1) < 2) {
+    return `M ${x1} ${y1} L ${x2} ${y2}`; // same column → straight
+  }
+  const r = Math.min(10, Math.abs(x2 - x1) / 2, (y2 - y1) / 4);
+  const sx = x2 > x1 ? 1 : -1;
+  return [
+    `M ${x1} ${y1}`,
+    `L ${x1} ${my - r}`,
+    `Q ${x1} ${my} ${x1 + sx * r} ${my}`,
+    `L ${x2 - sx * r} ${my}`,
+    `Q ${x2} ${my} ${x2} ${my + r}`,
+    `L ${x2} ${y2}`,
+  ].join(" ");
+}
+
+function OrgConnectors({ people, peopleById, zoom, accent, lineType }) {
   const [paths, setPaths] = useState([]);
+  const [yBounds, setYBounds] = useState([0, 1000]);
 
   useEffect(() => {
     const measure = () => {
@@ -369,6 +589,7 @@ function OrgConnectors({ people, peopleById, zoom, accent }) {
       const ir = inner.getBoundingClientRect();
       const z = zoom || 1;
       const result = [];
+      let yMin = Infinity, yMax = -Infinity;
 
       for (const person of people) {
         if (!person.parent || !peopleById[person.parent]) continue;
@@ -383,19 +604,25 @@ function OrgConnectors({ people, peopleById, zoom, accent }) {
         const y1 = (pr.bottom            - ir.top)  / z;
         const x2 = (cr.left + cr.width  / 2 - ir.left) / z;
         const y2 = (cr.top               - ir.top)  / z;
-        const my = (y1 + y2) / 2;
 
-        result.push(`M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`);
+        if (y1 < yMin) yMin = y1;
+        if (y2 > yMax) yMax = y2;
+        result.push(buildLinePath(x1, y1, x2, y2, lineType || "orthogonal"));
       }
       setPaths(result);
+      if (yMin !== Infinity) setYBounds([yMin, yMax]);
     };
 
-    const t = setTimeout(measure, 40);
+    const raf = (fn) => requestAnimationFrame(fn);
+    const t1 = setTimeout(() => raf(measure), 50);
+    const t2 = setTimeout(() => raf(measure), 250);
+    const t3 = setTimeout(() => raf(measure), 700);
     window.addEventListener("resize", measure);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
-  }, [people, peopleById, zoom]);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); window.removeEventListener("resize", measure); };
+  }, [people, peopleById, zoom, lineType]);
 
   if (!paths.length) return null;
+  const c = accent || "#C97B67";
   return (
     <svg style={{
       position:"absolute", top:0, left:0,
@@ -403,9 +630,11 @@ function OrgConnectors({ people, peopleById, zoom, accent }) {
       overflow:"visible", pointerEvents:"none", zIndex:0,
     }}>
       <defs>
-        <linearGradient id="conn-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor={accent || "#4A90E2"} stopOpacity="0.55"/>
-          <stop offset="100%" stopColor={accent || "#4A90E2"} stopOpacity="0.18"/>
+        {/* userSpaceOnUse avoids the objectBoundingBox zero-width bug on vertical paths */}
+        <linearGradient id="conn-grad" gradientUnits="userSpaceOnUse"
+          x1="0" y1={yBounds[0]} x2="0" y2={yBounds[1]}>
+          <stop offset="0%"   stopColor={c} stopOpacity="0.6"/>
+          <stop offset="100%" stopColor={c} stopOpacity="0.2"/>
         </linearGradient>
       </defs>
       {paths.map((d, i) => (
@@ -427,7 +656,7 @@ function HistoryPanel({ entries, onClose }) {
     return "↕";
   };
   return (
-    <div style={{
+    <div className="history-panel" style={{
       position:"fixed", top:0, right:0, bottom:0, width:300, zIndex:90,
       background:"#fff", borderLeft:"1px solid #E6E6E6",
       boxShadow:"-4px 0 24px rgba(0,0,0,.08)",
@@ -490,7 +719,7 @@ function HistoryPanel({ entries, onClose }) {
   );
 }
 
-function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onSignIn, onSignOut, onHistory, historyOpen }) {
+function TopBar({ onAdd, onReset, onFit, isFitted, count, lastEditInfo, user, canEdit, onSignIn, onSignOut, onHistory, historyOpen, onMembersToggle, membersOpen, onTweaks, tweaksOpen }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -501,32 +730,59 @@ function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onS
         </div>
       </div>
       <div className="topbar-right">
-        <div className="meta-pill"><b>{count}</b> members</div>
+        <button className="meta-pill members-trigger" onClick={onMembersToggle}
+          style={{ cursor:"default", border:"1px solid rgba(255,255,255,.18)",
+                   background: membersOpen ? "rgba(255,255,255,.22)" : "rgba(255,255,255,.1)",
+                   borderRadius:4, padding:"6px 10px", display:"flex", alignItems:"center", gap:5,
+                   font:"500 11px/1 'JetBrains Mono',monospace", color:"rgba(255,255,255,.75)", letterSpacing:".04em" }}>
+          <b style={{ color:"#fff" }}>{count}</b> members
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+               style={{ opacity:.6, transform: membersOpen ? "rotate(180deg)" : "none", transition:"transform .2s" }}>
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+        <button className="btn" onClick={onTweaks}
+          style={tweaksOpen ? { background:"#2D2D2D", color:"#fff", borderColor:"#2D2D2D" } : {}}
+          title="Customise chart">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+            <path d="M12 2v2m0 16v2M2 12h2m16 0h2"/>
+          </svg>
+          <span className="btn-label">Settings</span>
+        </button>
         <button className="btn" onClick={onHistory}
           style={historyOpen ? { background:"#2D2D2D", color:"#fff", borderColor:"#2D2D2D" } : {}}
           title="Edit history">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
-          History
+          <span className="btn-label">History</span>
         </button>
-        <button className="btn" onClick={onFit} title="Fit chart to screen">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-          </svg>
-          Fit
+        <button className="btn" onClick={onFit}
+          title={isFitted ? "Back to normal view" : "Fit chart to screen"}
+          style={isFitted ? { background:"#2D2D2D", color:"#fff", borderColor:"#2D2D2D" } : {}}>
+          {isFitted ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3v5H3m18 0V3h-5m5 13h-5v5m-10 0v-5H3"/>
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          )}
+          <span className="btn-label">{isFitted ? "Zoom" : "Fit"}</span>
         </button>
         <button className="btn" onClick={() => window.print()} title="Print / Export PDF">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9V2h12v7"/><rect x="6" y="17" width="12" height="5"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
           </svg>
-          Print PDF
+          <span className="btn-label">Print PDF</span>
         </button>
-        {canEdit && <button className="btn" onClick={onReset} title="Restore seed data">Reset</button>}
+        {canEdit && <button className="btn btn-mobile-hide" onClick={onReset} title="Restore seed data">Reset</button>}
         {canEdit && (
           <button className="btn btn-primary" onClick={onAdd}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            Add member
+            <span className="btn-label">Add member</span>
           </button>
         )}
         {user ? (
@@ -537,13 +793,13 @@ function TopBar({ onAdd, onReset, onFit, count, lastEditInfo, user, canEdit, onS
             )}
             <button className="btn btn-ghost" onClick={onSignOut}
               style={{ fontSize:11 }} title={"Signed in as " + user.email}>
-              Sign out
+              <span className="btn-label">Sign out</span>
             </button>
           </div>
         ) : (
           <button className="btn" onClick={onSignIn}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-            Sign in to edit
+            <span className="btn-label">Sign in to edit</span>
           </button>
         )}
       </div>
@@ -592,10 +848,29 @@ function App() {
   const [dropTargetId, setDropTargetId] = useState(null);
   const [rootDropOver, setRootDropOver] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [isFitted, setIsFitted] = useState(false);
+  const prevZoomRef = useRef(1);
   const canvasRef = useRef(null);
+  const pinchDistRef = useRef(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState([]);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Sync tweaksOpen with TweaksPanel internal state
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e?.data?.type === '__edit_mode_dismissed') setTweaksOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const openTweaks = () => {
+    setTweaksOpen(true);
+    window.postMessage({ type: '__activate_edit_mode' }, '*');
+  };
 
   // Auth state listener
   useEffect(() => {
@@ -603,6 +878,83 @@ function App() {
       setUser(u);
       setAuthReady(true);
     });
+  }, []);
+
+  // On mobile: auto-fit chart to screen after load. On desktop: just center horizontally.
+  useEffect(() => {
+    if (loading) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (window.innerWidth <= 768) {
+      setZoom(1);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!canvasRef.current) return;
+        const c = canvasRef.current;
+        const scale = Math.min(
+          c.clientWidth  / c.scrollWidth,
+          c.clientHeight / c.scrollHeight
+        );
+        const fit = Math.max(0.1, Math.min(1, scale));
+        setZoom(fit);
+        setIsFitted(true);
+        requestAnimationFrame(() => {
+          c.scrollLeft = (c.scrollWidth - c.clientWidth) / 2;
+        });
+      }));
+    } else {
+      requestAnimationFrame(() => {
+        canvas.scrollLeft = (canvas.scrollWidth - canvas.clientWidth) / 2;
+      });
+    }
+  }, [loading]);
+
+  // Pinch-to-zoom + double-tap to re-center (mobile)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let lastTap = 0;
+
+    const onStart = (e) => {
+      if (e.touches.length === 2) {
+        const [a, b] = e.touches;
+        pinchDistRef.current = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+      }
+    };
+    const onMove = (e) => {
+      if (e.touches.length !== 2 || pinchDistRef.current === null) return;
+      e.preventDefault();
+      const [a, b] = e.touches;
+      const dist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+      const ratio = dist / pinchDistRef.current;
+      setZoom(z => Math.max(0.15, Math.min(2, z * ratio)));
+      setIsFitted(false);
+      pinchDistRef.current = dist;
+    };
+    const onEnd = (e) => {
+      pinchDistRef.current = null;
+      // double-tap with single finger → scroll to center
+      if (e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (now - lastTap < 280) {
+          canvas.scrollTo({
+            left: (canvas.scrollWidth - canvas.clientWidth) / 2,
+            top: 0,
+            behavior: "smooth",
+          });
+          lastTap = 0;
+        } else {
+          lastTap = now;
+        }
+      }
+    };
+    canvas.addEventListener("touchstart", onStart, { passive: true });
+    canvas.addEventListener("touchmove",  onMove,  { passive: false });
+    canvas.addEventListener("touchend",   onEnd,   { passive: true });
+    return () => {
+      canvas.removeEventListener("touchstart", onStart);
+      canvas.removeEventListener("touchmove",  onMove);
+      canvas.removeEventListener("touchend",   onEnd);
+    };
   }, []);
 
   // Edit tracking listener
@@ -746,8 +1098,14 @@ function App() {
   }, [peopleById]);
 
   const handleFit = useCallback(() => {
+    if (isFitted) {
+      setZoom(prevZoomRef.current);
+      setIsFitted(false);
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
+    prevZoomRef.current = zoom;
     setZoom(1);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!canvasRef.current) return;
@@ -756,8 +1114,9 @@ function App() {
         canvas.clientHeight / canvas.scrollHeight
       );
       setZoom(Math.max(0.1, Math.min(1, scale)));
+      setIsFitted(true);
     }));
-  }, []);
+  }, [isFitted, zoom]);
 
   const flash = (msg) => {
     setToast(msg);
@@ -824,6 +1183,7 @@ function App() {
   const editing = editingId ? peopleById[editingId] : null;
   const densityClass = "density-" + (t.density || "regular");
   const canEdit = !!user;
+  const zoomClass = zoom < 0.5 ? "zoom-xs" : zoom < 0.8 ? "zoom-sm" : "zoom-lg";
 
   if (loading || !authReady) return (
     <div style={{ display:"grid", placeItems:"center", height:"100vh",
@@ -835,16 +1195,18 @@ function App() {
 
   return (
     <div className={densityClass}>
-      <TopBar onAdd={onAdd} onReset={onReset} onFit={handleFit} count={people.length}
+      <TopBar onAdd={onAdd} onReset={onReset} onFit={handleFit} isFitted={isFitted} count={people.length}
               lastEditInfo={lastEditInfo} user={user} canEdit={canEdit}
               onSignIn={signIn} onSignOut={signOut}
-              onHistory={() => setHistoryOpen(o => !o)} historyOpen={historyOpen} />
+              onHistory={() => setHistoryOpen(o => !o)} historyOpen={historyOpen}
+              onMembersToggle={() => setMembersOpen(o => !o)} membersOpen={membersOpen}
+              onTweaks={openTweaks} tweaksOpen={tweaksOpen} />
       <Stats people={people} />
 
       <div className="canvas" ref={canvasRef}>
-        <div className="canvas-inner" style={zoom !== 1 ? { zoom } : undefined}>
+        <div className={`canvas-inner ${zoomClass}`} style={zoom !== 1 ? { zoom } : undefined}>
           <OrgConnectors people={people} peopleById={peopleById}
-            zoom={zoom} accent={t.accent} />
+            zoom={zoom} accent={t.accent} lineType={t.lineType} />
           <ul className="tree">
             {roots.map(r => (
               <TreeNode key={r.id} id={r.id} byParent={byParent} peopleById={peopleById}
@@ -886,6 +1248,11 @@ function App() {
 
       <div className={"toast " + (toast ? "show" : "")}>{toast}</div>
 
+      {membersOpen && (
+        <MembersPanel people={people} byParent={byParent} roots={roots}
+          peopleById={peopleById} onClose={() => setMembersOpen(false)} />
+      )}
+
       {historyOpen && (
         <HistoryPanel entries={history} onClose={() => setHistoryOpen(false)} />
       )}
@@ -907,6 +1274,13 @@ function App() {
           onChange={(v) => setTweak("accent", v)} />
 
         <TweakSection label="Connector lines" />
+        <TweakSelect label="Line type" value={t.lineType}
+          options={[
+            { value: "orthogonal", label: "Orthogonal (default)" },
+            { value: "curved",     label: "Curved" },
+            { value: "straight",   label: "Straight" },
+          ]}
+          onChange={(v) => setTweak("lineType", v)} />
         <TweakColor label="Line color" value={t.lineColor}
           options={["#C9C9C9", "#2D2D2D", "#4A90E2", "#9B9B9B", "#E8E8E8"]}
           onChange={(v) => setTweak("lineColor", v)} />

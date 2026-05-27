@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Team Org Chart</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -127,9 +127,14 @@
     overflow:auto;
   }
   .canvas-inner{
+    position: relative;
+    /* max-content width lets the canvas scroll to reach all content in both directions */
+    width: max-content;
     min-width: 100%;
+    margin: 0 auto;
     padding: 56px 48px 80px;
-    display:flex; justify-content:center;
+    display: block;
+    text-align: center;
   }
 
   /* ───────── tree (CSS connector lines) ───────── */
@@ -149,8 +154,6 @@
   .tree li > ul::before{ display:none !important }
   .tree > li{ padding-top: 0 }
   .tree > li > .node{ margin-top: 0 }
-
-  .canvas-inner{ position: relative; }
 
   /* ───────── node card ───────── */
   .node{
@@ -384,6 +387,22 @@
     color: var(--ink-faint);
   }
 
+  /* avatar upload trigger */
+  .avatar-upload-wrap{
+    position: relative; flex-shrink: 0; cursor: default;
+  }
+  .avatar-upload-overlay{
+    position: absolute; inset: 0; border-radius: 50%;
+    background: rgba(0,0,0,.38);
+    display: grid; place-items: center;
+    opacity: 0; transition: opacity .15s;
+  }
+  .avatar-upload-wrap:hover .avatar-upload-overlay{ opacity: 1; }
+  /* always show on touch devices */
+  @media (hover: none){
+    .avatar-upload-overlay{ opacity: 1; }
+  }
+
   .field{ display:flex; flex-direction:column; gap:6px; margin-bottom: 14px }
   .field label{
     font: 500 10px/1 "JetBrains Mono", monospace;
@@ -455,44 +474,195 @@
   .visually-hidden{ position:absolute; opacity:0; pointer-events:none; width:0; height:0 }
 
   /* ───────── print ───────── */
-  @page { size: A4 landscape; margin: 12mm; }
+  @page { size: A4 landscape; margin: 10mm; }
 
   @media print {
+    /* reset body */
     body { overflow: visible !important; background: #fff !important; }
     body::before { display: none !important; }
-    .topbar { display: none !important; }
-    .stats { display: none !important; }
-    .root-drop { display: none !important; }
-    .toast { display: none !important; }
-    .twk-panel { display: none !important; }
-    .node-edit { display: none !important; }
-    .level-badge { display: none !important; }
 
-    .canvas {
+    /* reset mobile flex layout so canvas is not height-constrained */
+    .density-compact, .density-regular {
       height: auto !important;
+      display: block !important;
       overflow: visible !important;
     }
+
+    /* hide all UI chrome */
+    .topbar, .stats, .root-drop, .toast, .twk-panel,
+    .node-edit, .level-badge, .history-panel, .members-panel,
+    .modal-backdrop { display: none !important; }
+
+    .canvas { height: auto !important; overflow: visible !important; }
+
+    /* reset React-applied zoom; scale entire canvas for A4 */
     .canvas-inner {
-      padding: 16px !important;
+      zoom: 1 !important;
+      width: max-content !important;
+      margin: 0 auto !important;
+      padding: 12px 20px !important;
+      transform: scale(0.72);
       transform-origin: top center;
+      display: block !important;
+      text-align: center !important;
     }
 
-    /* scale the whole tree to fit A4 landscape width */
-    .tree {
-      transform: scale(0.78);
-      transform-origin: top center;
-      display: block;
+    /* hide SVG bezier (coordinates depend on runtime zoom — unreliable for print) */
+    .canvas-inner > svg { display: none !important; }
+
+    /* restore classic CSS connector lines for print */
+    .tree li::before {
+      content: '' !important; display: block !important;
+      position: absolute !important; top: 0 !important; right: 50% !important;
+      width: 50% !important; height: var(--gap-v) !important;
+      border-top: 1.5px solid #C5BAB0 !important; border-left: none !important;
+    }
+    .tree li::after {
+      content: '' !important; display: block !important;
+      position: absolute !important; top: 0 !important; left: 50% !important; right: auto !important;
+      width: 50% !important; height: var(--gap-v) !important;
+      border-left: 1.5px solid #C5BAB0 !important; border-top: none !important;
+    }
+    .tree li:only-child::before,
+    .tree li:only-child::after  { display: none !important; }
+    .tree li:last-child::before { border-top-color:  transparent !important; }
+    .tree li:first-child::after { border-left-color: transparent !important; }
+    .tree li > ul::before {
+      content: '' !important; display: block !important;
+      position: absolute !important; top: 0 !important; left: 50% !important;
+      height: var(--gap-v) !important;
+      border-left: 1.5px solid #C5BAB0 !important;
     }
 
+    /* show full card content (override mobile CSS) */
     .node {
+      width: 200px !important;
+      padding: 18px 14px 14px !important;
       break-inside: avoid;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08) !important;
       cursor: default !important;
-      box-shadow: 0 1px 3px rgba(0,0,0,.1) !important;
     }
-    .node:hover {
-      transform: none !important;
-      box-shadow: 0 1px 3px rgba(0,0,0,.1) !important;
+    .node:hover { transform: none !important; }
+    .tags        { display: flex !important; }
+    .node-email  { display: none !important; }
+    .node-id     { display: none !important; }
+    .avatar      { width: 52px !important; height: 52px !important; }
+    .node-name   { font-size: 14px !important; }
+    .node-role   { font-size: 12px !important; }
+  }
+
+  /* ─────────── mobile / responsive ─────────── */
+  @media (max-width: 768px) {
+    /* flex column → canvas fills exact remaining height, no magic number needed */
+    .density-compact, .density-regular {
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
+    .canvas {
+      flex: 1 !important;
+      height: auto !important;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .topbar { padding: 10px 14px; gap: 8px; flex-shrink: 0; }
+    .brand-title { font-size: 13px; white-space: nowrap; }
+    .brand-sub { display: none; }
+
+    /* topbar-right scrolls horizontally so buttons never clip when signed in */
+    .topbar-right {
+      gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      flex-wrap: nowrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .topbar-right::-webkit-scrollbar { display: none; }
+
+    /* icon-only buttons */
+    .btn-label { display: none; }
+    .topbar-right .btn { padding: 7px 9px; min-width: 34px; justify-content: center; flex-shrink: 0; }
+    .btn-mobile-hide { display: none !important; }
+
+    .stats {
+      padding: 10px 14px;
+      gap: 14px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+    .stats::-webkit-scrollbar { display: none; }
+    .stat { flex-shrink: 0; }
+    .stat .num { font-size: 15px; }
+    .stat .lbl { font-size: 9px; }
+
+    :root {
+      --node-w: 164px;
+      --node-pad: 14px;
+      --gap-h: 16px;
+      --gap-v: 44px;
+    }
+
+    .avatar { width: 44px; height: 44px; font-size: 15px; margin-bottom: 8px; }
+    .node-name { font-size: 13px; }
+    .node-role { font-size: 11px; margin-top: 2px; }
+    .node-edit { opacity: 1 !important; transform: none !important; }
+
+    /* edit modal → bottom sheet on mobile */
+    .modal-backdrop { align-items: flex-end; padding: 0; }
+    .modal {
+      width: 100% !important;
+      max-width: 100% !important;
+      max-height: 92dvh !important;
+      border-radius: 16px 16px 0 0 !important;
+      margin: 0 !important;
+    }
+    .modal-ft {
+      flex-shrink: 0;
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+    }
+    .modal-body { -webkit-overflow-scrolling: touch; }
+
+    /* compact cards on mobile */
+    .node { padding: 14px 12px 12px; width: 130px; }
+    .node-email { display: none !important; }
+    .node-id   { display: none !important; }
+
+    /* progressive disclosure — content reveals as user zooms in */
+    .zoom-xs .tags            { display: none; }
+    .zoom-sm .tags            { display: flex; }
+    .zoom-sm .tag:not(.accent){ display: none; }   /* scope only at mid zoom */
+    .zoom-lg .tags            { display: flex; }    /* everything at high zoom */
+
+    .history-panel {
+      top: auto !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 65vh !important;
+      border-left: none !important;
+      border-top: 1px solid #E6E6E6 !important;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -8px 32px rgba(0,0,0,.12) !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    :root {
+      --node-w: 120px;
+      --node-pad: 10px;
+      --gap-h: 10px;
+      --gap-v: 32px;
+    }
+    .node { width: 120px; padding: 12px 10px 10px; }
+    .avatar { width: 38px; height: 38px; font-size: 13px; }
+    .node-name { font-size: 12px; }
+    .node-role { font-size: 10px; }
   }
 
   /* scrollbar */
