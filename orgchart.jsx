@@ -744,9 +744,9 @@ function TopBar({ onAdd, onReset, onFit, isFitted, count, lastEditInfo, user, ca
         <button className="btn" onClick={onTweaks}
           style={tweaksOpen ? { background:"#2D2D2D", color:"#fff", borderColor:"#2D2D2D" } : {}}
           title="Customise chart">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-            <path d="M12 2v2m0 16v2M2 12h2m16 0h2"/>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
           <span className="btn-label">Settings</span>
         </button>
@@ -1198,9 +1198,9 @@ function App() {
       <TopBar onAdd={onAdd} onReset={onReset} onFit={handleFit} isFitted={isFitted} count={people.length}
               lastEditInfo={lastEditInfo} user={user} canEdit={canEdit}
               onSignIn={signIn} onSignOut={signOut}
-              onHistory={() => setHistoryOpen(o => !o)} historyOpen={historyOpen}
+              onHistory={() => { setHistoryOpen(o => !o); if (!historyOpen) { setTweaksOpen(false); window.postMessage({ type: '__deactivate_edit_mode' }, '*'); } }} historyOpen={historyOpen}
               onMembersToggle={() => setMembersOpen(o => !o)} membersOpen={membersOpen}
-              onTweaks={openTweaks} tweaksOpen={tweaksOpen} />
+              onTweaks={() => { if (tweaksOpen) { setTweaksOpen(false); window.postMessage({ type: '__deactivate_edit_mode' }, '*'); } else { setHistoryOpen(false); openTweaks(); } }} tweaksOpen={tweaksOpen} />
       <Stats people={people} />
 
       <div className="canvas" ref={canvasRef}>
